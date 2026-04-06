@@ -128,12 +128,32 @@ def get_stats(db: Session = Depends(get_db)):
         .filter(Source.source_type == "github")
         .scalar()
     )
+    # Per-source stats
+    sources = db.query(Source).all()
+    per_source = []
+    for s in sources:
+        repo_count = db.query(func.count(Repository.id)).filter_by(source_id=s.id).scalar()
+        branch_count = (
+            db.query(func.count(Branch.id))
+            .join(Repository)
+            .filter(Repository.source_id == s.id)
+            .scalar()
+        )
+        per_source.append({
+            "name": s.name,
+            "source_type": s.source_type,
+            "repo_count": repo_count,
+            "branch_count": branch_count,
+            "last_synced": s.last_synced.isoformat() if s.last_synced else None,
+        })
+
     return {
         "total_sources": total_sources,
         "total_repos": total_repos,
         "total_branches": total_branches,
         "gerrit_repos": gerrit_repos,
         "github_repos": github_repos,
+        "per_source": per_source,
     }
 
 

@@ -33,13 +33,16 @@
     </div>
 
     <!-- Stats -->
-    <div id="stats" class="row g-3 mb-4">
+    <div id="stats" class="row g-3 mb-3">
         <div class="col"><div class="card stat-card p-3"><h2 id="stat-sources">-</h2><small class="text-muted">Sources</small></div></div>
         <div class="col"><div class="card stat-card p-3"><h2 id="stat-repos">-</h2><small class="text-muted">Repositories</small></div></div>
         <div class="col"><div class="card stat-card p-3"><h2 id="stat-branches">-</h2><small class="text-muted">Branches</small></div></div>
         <div class="col"><div class="card stat-card p-3"><h2 id="stat-gerrit">-</h2><small class="text-muted">Gerrit Repos</small></div></div>
         <div class="col"><div class="card stat-card p-3"><h2 id="stat-github">-</h2><small class="text-muted">GitHub Repos</small></div></div>
     </div>
+
+    <!-- Per-source Stats -->
+    <div id="per-source-stats" class="row g-3 mb-4"></div>
 
     <!-- Tabs -->
     <ul class="nav nav-tabs mb-3" role="tablist">
@@ -149,6 +152,30 @@ async function loadStats() {
     document.getElementById('stat-branches').textContent = s.total_branches;
     document.getElementById('stat-gerrit').textContent = s.gerrit_repos;
     document.getElementById('stat-github').textContent = s.github_repos;
+
+    // Per-source cards
+    const container = document.getElementById('per-source-stats');
+    container.innerHTML = (s.per_source || []).map(ps => `
+        <div class="col-md-3">
+            <div class="card p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <strong>${ps.name}</strong>
+                    <span class="badge badge-${ps.source_type}">${ps.source_type}</span>
+                </div>
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="mb-0">${ps.repo_count}</h4>
+                        <small class="text-muted">Repos</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="mb-0">${ps.branch_count}</h4>
+                        <small class="text-muted">Branches</small>
+                    </div>
+                </div>
+                <small class="text-muted mt-2 d-block">Synced: ${ps.last_synced ? new Date(ps.last_synced).toLocaleString() : 'Never'}</small>
+            </div>
+        </div>
+    `).join('');
 }
 
 async function loadSources() {
