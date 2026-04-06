@@ -85,6 +85,21 @@ github_instances:
 | GET | `/api/inheritance` | Gerrit 권한 상속 트리 |
 | POST | `/api/sync` | 수동 Sync 트리거 |
 
+## 개발 모드
+
+코드 수정 시 Docker rebuild 없이 자동 반영됩니다.
+
+```bash
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+운영 모드와의 차이:
+- `./app:/app/app` — 로컬 소스 코드를 컨테이너에 직접 마운트
+- `--reload` — 파일 변경 감지 시 uvicorn 자동 재시작
+
+`.py`, `.html` 파일 수정 후 브라우저 새로고침만 하면 됩니다.
+`requirements.txt`를 변경한 경우에만 `--build`로 다시 빌드가 필요합니다.
+
 ## 운영 명령어
 
 ```bash
