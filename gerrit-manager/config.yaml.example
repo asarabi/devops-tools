@@ -1,0 +1,25 @@
+sync_interval_minutes: 30
+
+gerrit_instances:
+  - name: gerrit-main
+    url: https://gerrit.example.com
+    auth_type: http  # http or ssh
+    username: admin
+    password: secret
+    # ssh_key: ~/.ssh/id_rsa  # auth_type: ssh 일 때 사용
+    # ssh_port: 29418
+
+  - name: gerrit-secondary
+    url: https://gerrit2.example.com
+    auth_type: ssh
+    username: admin
+    ssh_key: ~/.ssh/id_rsa
+    ssh_port: 29418
+
+github_instances:
+  - name: github-main
+    url: https://api.github.com
+    token: ghp_xxxxxxxxxxxx
+    orgs:
+      - my-org
+    # include_user_repos: true  # 개인 레포 포함 여부

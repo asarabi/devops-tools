@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ko" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerrit Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .badge-gerrit { background-color: #4caf50; }
+        .badge-github { background-color: #333; }
+        .badge-ACTIVE { background-color: #198754; }
+        .badge-READ_ONLY { background-color: #ffc107; color: #000; }
+        .badge-HIDDEN { background-color: #6c757d; }
+        .badge-ARCHIVED { background-color: #6c757d; }
+        .repo-row { cursor: pointer; }
+        .repo-row:hover { background-color: rgba(255,255,255,0.05); }
+        .detail-panel { display: none; }
+        .tree-node { margin-left: 24px; }
+        .sync-btn:disabled { opacity: 0.6; }
+        #stats .stat-card { text-align: center; }
+        #stats .stat-card h2 { font-size: 2.5rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="container-fluid p-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Gerrit Manager</h1>
+        <div>
+            <button class="btn btn-outline-light sync-btn" onclick="triggerSync()">
+                Sync Now
+            </button>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div id="stats" class="row g-3 mb-4">
+        <div class="col"><div class="card stat-card p-3"><h2 id="stat-sources">-</h2><small class="text-muted">Sources</small></div></div>
+        <div class="col"><div class="card stat-card p-3"><h2 id="stat-repos">-</h2><small class="text-muted">Repositories</small></div></div>
+        <div class="col"><div class="card stat-card p-3"><h2 id="stat-branches">-</h2><small class="text-muted">Branches</small></div></div>
+        <div class="col"><div class="card stat-card p-3"><h2 id="stat-gerrit">-</h2><small class="text-muted">Gerrit Repos</small></div></div>
+        <div class="col"><div class="card stat-card p-3"><h2 id="stat-github">-</h2><small class="text-muted">GitHub Repos</small></div></div>
+    </div>
+
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item">
+            <a class="nav-link active" data-bs-toggle="tab" href="#tab-repos">Repositories</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tab-inheritance">Permission Inheritance</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-bs-toggle="tab" href="#tab-sources">Sources</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <!-- Repositories Tab -->
+        <div class="tab-pane fade show active" id="tab-repos">
+            <div class="row g-2 mb-3">
+                <div class="col-md-4">
+                    <input type="text" id="search" class="form-control" placeholder="Search repositories...">
+                </div>
+                <div class="col-md-3">
+                    <select id="filter-source" class="form-select">
+                        <option value="">All Sources</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <select id="filter-state" class="form-select">
+                        <option value="">All States</option>
+                        <option value="ACTIVE">ACTIVE</option>
+                        <option value="READ_ONLY">READ_ONLY</option>
+                        <option value="HIDDEN">HIDDEN</option>
+                        <option value="ARCHIVED">ARCHIVED</option>
+                    </select>
+                </div>
+                <div class="col-md-3 text-end">
+                    <span id="repo-count" class="text-muted"></span>
+                </div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm">
+                    <thead>
+                        <tr>
+                            <th>Source</th>
+                            <th>Repository</th>
+                            <th>Description</th>
+                            <th>State</th>
+                            <th>Branches</th>
+                            <th>Parent (Gerrit)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="repo-table"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Inheritance Tab -->
+        <div class="tab-pane fade" id="tab-inheritance">
+            <div class="mb-3">
+                <select id="inheritance-source" class="form-select w-auto">
+                    <option value="">All Gerrit Instances</option>
+                </select>
+            </div>
+            <div id="inheritance-tree" class="font-monospace"></div>
+        </div>
+
+        <!-- Sources Tab -->
+        <div class="tab-pane fade" id="tab-sources">
+            <div class="table-responsive">
+                <table class="table">
+                    <thead>
+                        <tr><th>Name</th><th>Type</th><th>URL</th><th>Repos</th><th>Last Synced</th></tr>
+                    </thead>
+                    <tbody id="source-table"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detail Modal -->
+    <div class="modal fade" id="repoModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modal-title"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" id="modal-body"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+const API = '/api';
+
+async function fetchJSON(url) {
+    const resp = await fetch(url);
+    return resp.json();
+}
+
+async function loadStats() {
+    const s = await fetchJSON(`${API}/stats`);
+    document.getElementById('stat-sources').textContent = s.total_sources;
+    document.getElementById('stat-repos').textContent = s.total_repos;
+    document.getElementById('stat-branches').textContent = s.total_branches;
+    document.getElementById('stat-gerrit').textContent = s.gerrit_repos;
+    document.getElementById('stat-github').textContent = s.github_repos;
+}
+
+async function loadSources() {
+    const sources = await fetchJSON(`${API}/sources`);
+    const select = document.getElementById('filter-source');
+    const inhSelect = document.getElementById('inheritance-source');
+    sources.forEach(s => {
+        select.innerHTML += `<option value="${s.id}">${s.name} (${s.source_type})</option>`;
+        if (s.source_type === 'gerrit') {
+            inhSelect.innerHTML += `<option value="${s.id}">${s.name}</option>`;
+        }
+    });
+    // Sources table
+    const tbody = document.getElementById('source-table');
+    tbody.innerHTML = sources.map(s => `
+        <tr>
+            <td>${s.name}</td>
+            <td><span class="badge badge-${s.source_type}">${s.source_type}</span></td>
+            <td><a href="${s.url}" target="_blank">${s.url}</a></td>
+            <td>${s.repo_count}</td>
+            <td>${s.last_synced ? new Date(s.last_synced).toLocaleString() : 'Never'}</td>
+        </tr>
+    `).join('');
+}
+
+async function loadRepos() {
+    const search = document.getElementById('search').value;
+    const sourceId = document.getElementById('filter-source').value;
+    const state = document.getElementById('filter-state').value;
+    let url = `${API}/repositories?`;
+    if (search) url += `search=${encodeURIComponent(search)}&`;
+    if (sourceId) url += `source_id=${sourceId}&`;
+    if (state) url += `state=${state}&`;
+
+    const repos = await fetchJSON(url);
+    document.getElementById('repo-count').textContent = `${repos.length} repositories`;
+    const tbody = document.getElementById('repo-table');
+    tbody.innerHTML = repos.map(r => `
+        <tr class="repo-row" onclick="showDetail(${r.id})">
+            <td><span class="badge badge-${r.source_type}">${r.source_name}</span></td>
+            <td>${r.web_url ? `<a href="${r.web_url}" target="_blank" onclick="event.stopPropagation()">${r.name}</a>` : r.name}</td>
+            <td class="text-muted">${(r.description || '').substring(0, 80)}</td>
+            <td><span class="badge badge-${r.state}">${r.state}</span></td>
+            <td>${r.branch_count}</td>
+            <td>${r.parent_project || ''}</td>
+        </tr>
+    `).join('');
+}
+
+async function showDetail(id) {
+    const r = await fetchJSON(`${API}/repositories/${id}`);
+    document.getElementById('modal-title').textContent = r.name;
+    let html = `
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <strong>Source:</strong> ${r.source_name} (${r.source_type})<br>
+                <strong>State:</strong> <span class="badge badge-${r.state}">${r.state}</span><br>
+                ${r.web_url ? `<strong>URL:</strong> <a href="${r.web_url}" target="_blank">${r.web_url}</a><br>` : ''}
+                ${r.parent_project ? `<strong>Inherits from:</strong> ${r.parent_project}<br>` : ''}
+                ${r.description ? `<strong>Description:</strong> ${r.description}<br>` : ''}
+            </div>
+        </div>
+        <h6>Branches (${r.branches.length})</h6>
+        <table class="table table-sm">
+            <thead><tr><th>Branch</th><th>Revision</th></tr></thead>
+            <tbody>${r.branches.map(b => `<tr><td>${b.name}</td><td><code>${b.revision}</code></td></tr>`).join('')}</tbody>
+        </table>
+    `;
+    if (r.permissions && r.permissions.length > 0) {
+        html += `
+            <h6>Permissions (${r.permissions.length})</h6>
+            <table class="table table-sm">
+                <thead><tr><th>Ref</th><th>Permission</th><th>Group</th><th>Action</th></tr></thead>
+                <tbody>${r.permissions.map(p => `
+                    <tr>
+                        <td><code>${p.ref_pattern}</code></td>
+                        <td>${p.permission_name}</td>
+                        <td>${p.group_name}</td>
+                        <td><span class="badge ${p.action === 'ALLOW' ? 'bg-success' : p.action === 'DENY' ? 'bg-danger' : 'bg-warning'}">${p.action}</span></td>
+                    </tr>
+                `).join('')}</tbody>
+            </table>
+        `;
+    }
+    document.getElementById('modal-body').innerHTML = html;
+    new bootstrap.Modal(document.getElementById('repoModal')).show();
+}
+
+async function loadInheritance() {
+    const sourceId = document.getElementById('inheritance-source').value;
+    let url = `${API}/inheritance`;
+    if (sourceId) url += `?source_id=${sourceId}`;
+    const tree = await fetchJSON(url);
+    const container = document.getElementById('inheritance-tree');
+
+    if (Object.keys(tree).length === 0) {
+        container.innerHTML = '<p class="text-muted">No Gerrit data available. Run a sync first.</p>';
+        return;
+    }
+
+    function renderNode(name, depth) {
+        let html = `<div style="margin-left:${depth * 24}px; padding: 2px 0;">`;
+        html += depth === 0
+            ? `<strong>${name}</strong>`
+            : `<span class="text-muted">|--</span> ${name}`;
+        html += '</div>';
+        const children = tree[name] || [];
+        children.sort((a, b) => a.name.localeCompare(b.name));
+        for (const child of children) {
+            html += renderNode(child.name, depth + 1);
+        }
+        return html;
+    }
+
+    let html = '';
+    const roots = tree['(root)'] || tree['All-Projects'] || [];
+    if (roots.length > 0) {
+        const rootKey = tree['(root)'] ? '(root)' : 'All-Projects';
+        html = renderNode(rootKey, 0);
+    } else {
+        for (const key of Object.keys(tree).sort()) {
+            html += renderNode(key, 0);
+        }
+    }
+    container.innerHTML = html;
+}
+
+async function triggerSync() {
+    const btn = document.querySelector('.sync-btn');
+    btn.disabled = true;
+    btn.textContent = 'Syncing...';
+    try {
+        await fetch(`${API}/sync`, { method: 'POST' });
+        await Promise.all([loadStats(), loadRepos(), loadSources(), loadInheritance()]);
+    } catch (e) {
+        alert('Sync failed: ' + e.message);
+    }
+    btn.disabled = false;
+    btn.textContent = 'Sync Now';
+}
+
+// Debounced search
+let searchTimeout;
+document.getElementById('search').addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    searchTimeout = setTimeout(loadRepos, 300);
+});
+document.getElementById('filter-source').addEventListener('change', loadRepos);
+document.getElementById('filter-state').addEventListener('change', loadRepos);
+document.getElementById('inheritance-source').addEventListener('change', loadInheritance);
+
+// Init
+Promise.all([loadStats(), loadSources(), loadRepos(), loadInheritance()]);
+</script>
+</body>
+</html>
