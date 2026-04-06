@@ -25,7 +25,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Gerrit Manager", lifespan=lifespan)
+app = FastAPI(title="Repo Manager", lifespan=lifespan)
 app.include_router(api_router)
 
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")

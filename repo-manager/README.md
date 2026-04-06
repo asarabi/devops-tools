@@ -1,4 +1,4 @@
-# Gerrit Manager
+# Repo Manager
 
 다중 Gerrit 인스턴스 및 GitHub 레포지토리를 통합 관리하는 웹 대시보드입니다.
 
@@ -17,7 +17,7 @@
 ### 설정
 
 ```bash
-cd gerrit-manager
+cd repo-manager
 cp config.yaml.example config.yaml
 # config.yaml 편집: Gerrit/GitHub 접속 정보 입력
 ```

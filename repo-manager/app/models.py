@@ -10,7 +10,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import declarative_base, sessionmaker, relationship
 from datetime import datetime, timezone
 
-DATABASE_URL = "sqlite:///data/gerrit_manager.db"
+DATABASE_URL = "sqlite:///data/repo_manager.db"
 engine = create_engine(DATABASE_URL, echo=False)
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()

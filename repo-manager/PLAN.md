@@ -1,4 +1,4 @@
-# Gerrit Manager - Plan
+# Repo Manager - Plan
 
 ## 목적
 
