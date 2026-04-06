@@ -18,6 +18,38 @@ docker compose up -d --build
 docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 ```
 
+## 운영 명령어
+
+```bash
+# 중지
+docker compose down
+
+# 재시작
+docker compose restart
+
+# 로그 확인 (실시간)
+docker compose logs -f
+
+# 컨테이너 상태 확인
+docker compose ps
+
+# Jenkins 쉘 접속
+docker exec -it jenkins bash
+
+# 이미지만 새로 빌드 (컨테이너 재생성 없이)
+docker compose build --no-cache
+
+# 빌드 후 컨테이너 재생성
+docker compose up -d --build
+
+# 데이터 유지하면서 컨테이너만 삭제
+docker compose down
+# ~/jenkins_backup 디렉토리에 데이터가 보존됩니다
+
+# 완전 삭제 (이미지 포함)
+docker compose down --rmi all
+```
+
 ## 구성 파일
 
 | 파일 | 설명 |
