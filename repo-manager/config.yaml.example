@@ -1,4 +1,4 @@
-sync_interval_minutes: 30
+sync_interval_minutes: 240
 
 gerrit_instances:
   - name: gerrit-main
