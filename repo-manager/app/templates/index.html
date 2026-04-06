@@ -91,7 +91,8 @@
                             <th>Description</th>
                             <th>State</th>
                             <th>Branches</th>
-                            <th>Parent (Gerrit)</th>
+                            <th>Inherits From</th>
+                            <th>Local ACL</th>
                         </tr>
                     </thead>
                     <tbody id="repo-table"></tbody>
@@ -221,6 +222,7 @@ async function loadRepos() {
             <td><span class="badge badge-${r.state}">${r.state}</span></td>
             <td>${r.branch_count}</td>
             <td>${r.parent_project || ''}</td>
+            <td class="text-center">${r.source_type === 'gerrit' ? (r.has_local_permissions ? '<span class="text-warning fw-bold">O</span>' : '<span class="text-muted">X</span>') : ''}</td>
         </tr>
     `).join('');
 }
@@ -244,7 +246,38 @@ async function showDetail(id) {
             <tbody>${r.branches.map(b => `<tr><td>${b.name}</td><td><code>${b.revision}</code></td></tr>`).join('')}</tbody>
         </table>
     `;
-    if (r.permissions && r.permissions.length > 0) {
+    // Inheritance chain (Gerrit only)
+    if (r.inheritance_chain && r.inheritance_chain.length > 0) {
+        html += `<h6>Permission Inheritance Chain</h6>`;
+        html += `<div class="mb-2 text-muted small">${r.inheritance_chain.map(c => c.project).join(' &larr; ')}</div>`;
+        for (const node of r.inheritance_chain) {
+            const label = node.is_self ? `<strong>${node.project}</strong> (this)` : node.project;
+            const hasPerms = node.permissions.length > 0;
+            html += `<div class="card mb-2"><div class="card-body p-2">`;
+            html += `<div class="d-flex justify-content-between align-items-center mb-1">`;
+            html += `<span>${label}</span>`;
+            html += hasPerms
+                ? `<span class="text-warning fw-bold">O (${node.permissions.length})</span>`
+                : `<span class="text-muted">X</span>`;
+            html += `</div>`;
+            if (hasPerms) {
+                html += `
+                    <table class="table table-sm mb-0">
+                        <thead><tr><th>Ref</th><th>Permission</th><th>Group</th><th>Action</th></tr></thead>
+                        <tbody>${node.permissions.map(p => `
+                            <tr>
+                                <td><code>${p.ref_pattern}</code></td>
+                                <td>${p.permission_name}</td>
+                                <td>${p.group_name}</td>
+                                <td><span class="badge ${p.action === 'ALLOW' ? 'bg-success' : p.action === 'DENY' ? 'bg-danger' : 'bg-warning'}">${p.action}</span></td>
+                            </tr>
+                        `).join('')}</tbody>
+                    </table>
+                `;
+            }
+            html += `</div></div>`;
+        }
+    } else if (r.permissions && r.permissions.length > 0) {
         html += `
             <h6>Permissions (${r.permissions.length})</h6>
             <table class="table table-sm">

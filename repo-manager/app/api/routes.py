@@ -45,6 +45,7 @@ def list_repositories(
     result = []
     for r in repos:
         source = db.query(Source).get(r.source_id)
+        has_local = len(r.permissions) > 0
         result.append(
             {
                 "id": r.id,
@@ -57,6 +58,7 @@ def list_repositories(
                 "web_url": r.web_url,
                 "default_branch": r.default_branch,
                 "branch_count": len(r.branches),
+                "has_local_permissions": has_local,
             }
         )
     return result
@@ -68,6 +70,38 @@ def get_repository(repo_id: int, db: Session = Depends(get_db)):
     if not repo:
         return {"error": "not found"}
     source = db.query(Source).get(repo.source_id)
+
+    # Build inheritance chain: self -> parent -> ... -> root
+    inheritance_chain = []
+    visited = set()
+    current = repo
+    while current:
+        if current.name in visited:
+            break
+        visited.add(current.name)
+        perms = [
+            {
+                "ref_pattern": p.ref_pattern,
+                "permission_name": p.permission_name,
+                "group_name": p.group_name,
+                "action": p.action,
+            }
+            for p in current.permissions
+        ]
+        inheritance_chain.append({
+            "project": current.name,
+            "is_self": current.id == repo.id,
+            "permissions": perms,
+        })
+        if current.parent_project:
+            current = (
+                db.query(Repository)
+                .filter_by(source_id=repo.source_id, name=current.parent_project)
+                .first()
+            )
+        else:
+            current = None
+
     return {
         "id": repo.id,
         "name": repo.name,
@@ -78,6 +112,7 @@ def get_repository(repo_id: int, db: Session = Depends(get_db)):
         "parent_project": repo.parent_project,
         "web_url": repo.web_url,
         "default_branch": repo.default_branch,
+        "has_local_permissions": len(repo.permissions) > 0,
         "branches": [
             {"name": b.name, "revision": b.revision} for b in repo.branches
         ],
@@ -90,6 +125,7 @@ def get_repository(repo_id: int, db: Session = Depends(get_db)):
             }
             for p in repo.permissions
         ],
+        "inheritance_chain": inheritance_chain,
     }
 
 
