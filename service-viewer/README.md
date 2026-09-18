@@ -42,14 +42,31 @@ python3 run.py
 
 - 웹 대시보드: **http://localhost:8082**
 
-### 2. 관리자(ROOT) 모드 실행 (서비스 생성/수정/삭제/재시작 완벽 지원)
-
-`/etc/systemd/system/`의 파일을 직접 생성하거나 `systemctl restart` 등의 제어 권한을 웹에서 원클릭으로 처리하려면 `sudo`로 실행합니다:
+### 2. 관리자(ROOT) 모드 직접 실행
 
 ```bash
 cd service-viewer
+./run.sh
+# 또는
 sudo python3 run.py
 ```
+
+### 3. systemd 영구 데몬으로 등록 (권장 🌟)
+
+서버 부팅 시 자동으로 백그라운드에서 상시 실행되도록 systemd 서비스로 등록합니다:
+
+```bash
+cd service-viewer
+./install-service.sh
+```
+
+- **서비스 관리 명령어**:
+  ```bash
+  sudo systemctl status service-viewer    # 상태 확인
+  sudo systemctl restart service-viewer   # 재시작
+  sudo systemctl stop service-viewer      # 중지
+  journalctl -u service-viewer -f         # 실시간 로그 확인
+  ```
 
 ---
 

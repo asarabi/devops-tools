@@ -129,6 +129,10 @@ def get_service_details(service_name: str) -> Dict:
     if not exec_user or exec_user == "[not set]":
         exec_user = "root"
 
+    # Self-detection
+    cur_pid = os.getpid()
+    is_self = (service_name in ["service-viewer.service", "service-viewer"]) or (pid > 0 and (pid == cur_pid or pid == os.getppid()))
+
     return {
         "name": service_name,
         "description": props.get("Description", ""),
@@ -138,6 +142,7 @@ def get_service_details(service_name: str) -> Dict:
         "unit_file_state": unit_file_state,
         "pid": pid,
         "execution_user": exec_user,
+        "is_self": is_self,
         "memory_formatted": format_bytes(mem_bytes),
         "memory_bytes": mem_bytes,
         "active_since": active_since,
@@ -187,6 +192,11 @@ def control_service(service_name: str, action: str) -> Tuple[bool, str]:
     """Run start, stop, restart, enable, disable on a service"""
     if not service_name.endswith(".service"):
         service_name = f"{service_name}.service"
+
+    # Self-protection: Prevent stopping or disabling the dashboard service itself
+    if service_name in ["service-viewer.service", "service-viewer"]:
+        if action in ["stop", "disable"]:
+            return False, "자체 보호: Service Viewer 대시보드 자기 자신은 웹 화면에서 중지하거나 비활성화할 수 없습니다. (터미널에서 직접 제어하세요)"
 
     allowed_actions = ["start", "stop", "restart", "enable", "disable", "reload"]
     if action not in allowed_actions:

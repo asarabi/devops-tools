@@ -1,0 +1,16 @@
+[Unit]
+Description=Service Viewer Dashboard (systemd Custom Services Manager)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/ck21im/dev/devops-tools/service-viewer
+Environment="PYTHONPATH=/home/ck21im/.local/lib/python3.10/site-packages"
+Environment="PORT=8082"
+ExecStart=/usr/bin/python3 /home/ck21im/dev/devops-tools/service-viewer/run.py
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

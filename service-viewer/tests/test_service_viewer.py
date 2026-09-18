@@ -95,6 +95,12 @@ def test_api_endpoints():
     assert "logs" in res.json()
     print("GET /api/services/ollama.service/logs: OK")
 
+    # Test Self-Protection (POST /api/services/service-viewer.service/stop should fail)
+    res = client.post("/api/services/service-viewer.service/stop")
+    assert res.status_code == 400
+    assert "자체 보호" in res.json()["detail"]
+    print("POST /api/services/service-viewer.service/stop: BLOCKED (Self-protection OK)")
+
 
 if __name__ == "__main__":
     test_core_systemd()

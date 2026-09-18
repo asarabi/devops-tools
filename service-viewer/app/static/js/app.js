@@ -178,12 +178,16 @@ function createServiceCardHTML(svc) {
   const enableBtnLabel = svc.is_enabled ? "⚡ 자동실행 켬" : "⚪ 수동실행";
   const enableBtnClass = svc.is_enabled ? "btn-secondary" : "btn-ghost";
 
+  const isSelf = svc.is_self || svc.name === "service-viewer.service";
+  const selfBadge = isSelf ? `<span class="self-tag" title="현재 실행 중인 Service Viewer 대시보드 자체입니다">🛡️ 대시보드 본체</span>` : "";
+
   return `
     <div class="service-card ${cardClass}" data-name="${svc.name}">
       <div class="card-header">
         <div class="service-title-area">
           <div class="service-name">
             <span>${escapeHTML(svc.name)}</span>
+            ${selfBadge}
             <span class="user-tag" title="실행 계정 (User)">👤 ${escapeHTML(execUser)}</span>
             <span class="category-tag">${escapeHTML(svc.category || "Custom")}</span>
           </div>
@@ -213,21 +217,34 @@ function createServiceCardHTML(svc) {
 
       <div class="card-actions">
         <div class="action-group-left">
-          ${isRunning ? `
+          ${isSelf ? `
+            <button class="btn btn-sm btn-secondary btn-action" data-action="restart" data-name="${svc.name}" title="대시보드 서비스 재시작">
+              🔄 재시작
+            </button>
+            <button class="btn btn-sm btn-ghost" disabled title="자체 보호: 대시보드 자기 자신은 웹 화면에서 중지할 수 없습니다">
+              🔒 중지 불가
+            </button>
+            <button class="btn btn-sm btn-ghost" disabled title="자체 보호: 대시보드 부팅 자동실행 설정은 터미널에서 제어하세요">
+              ⚡ 자동실행
+            </button>
+          ` : (isRunning ? `
             <button class="btn btn-sm btn-secondary btn-action" data-action="restart" data-name="${svc.name}" title="서비스 재시작">
               🔄 재시작
             </button>
             <button class="btn btn-sm btn-secondary btn-action" data-action="stop" data-name="${svc.name}" title="서비스 중지">
               ⏹️ 중지
             </button>
+            <button class="btn btn-sm ${enableBtnClass} btn-toggle-enable" data-enabled="${svc.is_enabled}" data-name="${svc.name}" title="부팅 시 자동실행 설정 토글">
+              ${enableBtnLabel}
+            </button>
           ` : `
             <button class="btn btn-sm btn-primary btn-action" data-action="start" data-name="${svc.name}" title="서비스 시작">
               ▶️ 시작
             </button>
-          `}
-          <button class="btn btn-sm ${enableBtnClass} btn-toggle-enable" data-enabled="${svc.is_enabled}" data-name="${svc.name}" title="부팅 시 자동실행 설정 토글">
-            ${enableBtnLabel}
-          </button>
+            <button class="btn btn-sm ${enableBtnClass} btn-toggle-enable" data-enabled="${svc.is_enabled}" data-name="${svc.name}" title="부팅 시 자동실행 설정 토글">
+              ${enableBtnLabel}
+            </button>
+          `)}
         </div>
         <div class="action-group-right">
           <button class="btn btn-sm btn-secondary btn-view-logs" data-name="${svc.name}" title="실시간 journalctl 로그 보기">
