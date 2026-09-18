@@ -3,6 +3,7 @@ import logging
 import os
 import re
 import time
+from pathlib import Path
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -14,8 +15,56 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api")
 
-# In-memory execution history (persists during container runtime)
-EXECUTION_HISTORY: List[Dict[str, Any]] = []
+# Persistent history directory
+HISTORY_DIR = Path("data/history")
+HISTORY_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _save_record(record: Dict[str, Any]) -> None:
+    """Save an execution record as an individual JSON file."""
+    filepath = HISTORY_DIR / f"{record['id']}.json"
+    with open(filepath, "w", encoding="utf-8") as f:
+        json.dump(record, f, ensure_ascii=False, indent=2)
+    logger.info(f"Execution record saved: {filepath}")
+
+
+def _load_record(execution_id: str) -> Optional[Dict[str, Any]]:
+    """Load a single execution record by ID."""
+    filepath = HISTORY_DIR / f"{execution_id}.json"
+    if not filepath.exists():
+        return None
+    with open(filepath, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+def _list_records(limit: int = 50) -> List[Dict[str, Any]]:
+    """List all execution records, sorted by most recent first."""
+    files = sorted(HISTORY_DIR.glob("exec-*.json"), reverse=True)
+    records = []
+    for fp in files[:limit]:
+        try:
+            with open(fp, "r", encoding="utf-8") as f:
+                rec = json.load(f)
+                # Return summary (without full items list for performance)
+                records.append({
+                    "id": rec.get("id"),
+                    "timestamp": rec.get("timestamp"),
+                    "job_name": rec.get("job_name"),
+                    "build_url": rec.get("build_url"),
+                    "build_number": rec.get("build_number"),
+                    "total_items": rec.get("total_items"),
+                    "executed_items": rec.get("executed_items"),
+                    "skipped_items": rec.get("skipped_items"),
+                    "status": rec.get("status"),
+                    "note": rec.get("note"),
+                })
+        except Exception as e:
+            logger.warning(f"Failed to read history file {fp}: {e}")
+    return records
+
+
+def _count_records() -> int:
+    return len(list(HISTORY_DIR.glob("exec-*.json")))
 
 
 class SyncItemInput(BaseModel):
@@ -40,6 +89,7 @@ class ExecuteOptions(BaseModel):
 
 
 class ExecuteRequest(BaseModel):
+    raw_text: Optional[str] = None
     items: List[Dict[str, Any]]
     options: Optional[ExecuteOptions] = None
 
@@ -284,7 +334,7 @@ async def execute_in_jenkins(request: ExecuteRequest):
 
     # If Jenkins wasn't reached, create a simulated execution link
     if not jenkins_success:
-        simulated_build_num = len(EXECUTION_HISTORY) + 101
+        simulated_build_num = _count_records() + 101
         build_url = f"{jenkins_url.rstrip('/')}/job/{job_name}/{simulated_build_num}/"
         build_number = simulated_build_num
     else:
@@ -293,6 +343,7 @@ async def execute_in_jenkins(request: ExecuteRequest):
     record = {
         "id": execution_id,
         "timestamp": timestamp,
+        "input_text": request.raw_text or "",
         "job_name": job_name,
         "jenkins_url": jenkins_url,
         "build_url": build_url,
@@ -302,23 +353,46 @@ async def execute_in_jenkins(request: ExecuteRequest):
         "skipped_items": len(request.items) - len(executable_items),
         "status": "QUEUED" if jenkins_success else "SIMULATED",
         "note": "Jenkins Job 호출 완료" if jenkins_success else f"Jenkins 연동 준비 완료 (Mock: {error_detail or '대기 중'})",
-        "items": executable_items,
+        "options": {
+            "skip_errors": opts.skip_errors,
+            "allow_overwrite": opts.allow_overwrite,
+        },
+        "dry_run_results": request.items,
+        "executed_items_detail": executable_items,
     }
 
-    EXECUTION_HISTORY.insert(0, record)
-    if len(EXECUTION_HISTORY) > 50:
-        EXECUTION_HISTORY.pop()
+    _save_record(record)
 
     return record
 
 
 @router.get("/history")
 def get_execution_history():
-    """Returns recent executions list."""
+    """Returns recent execution summaries (without full item details)."""
+    records = _list_records(limit=50)
     return {
-        "total": len(EXECUTION_HISTORY),
-        "history": EXECUTION_HISTORY,
+        "total": len(records),
+        "history": records,
     }
+
+
+@router.get("/history/{execution_id}")
+def get_execution_detail(execution_id: str):
+    """Returns full detail of a specific execution, including input text for re-run."""
+    record = _load_record(execution_id)
+    if not record:
+        raise HTTPException(status_code=404, detail=f"실행 기록 '{execution_id}'을(를) 찾을 수 없습니다.")
+    return record
+
+
+@router.delete("/history/{execution_id}")
+def delete_execution(execution_id: str):
+    """Delete a specific execution record."""
+    filepath = HISTORY_DIR / f"{execution_id}.json"
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail=f"실행 기록 '{execution_id}'을(를) 찾을 수 없습니다.")
+    filepath.unlink()
+    return {"deleted": execution_id}
 
 
 @router.get("/jenkins/config")

@@ -210,6 +210,7 @@ frontend/portal-web missing frontend/portal-web feature/new`;
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          raw_text: rawInput.value,
           items: currentDryRunResults.results,
           options: { skip_errors: chkSkipErrors.checked, allow_overwrite: chkAllowOverwrite.checked },
         }),
@@ -251,14 +252,17 @@ frontend/portal-web missing frontend/portal-web feature/new`;
         d.innerHTML = `
           <div class="d-flex justify-content-between align-items-center mb-1">
             <strong>${esc(item.job_name)} #${esc(String(item.build_number))}</strong>
-            <span class="badge bg-success">${esc(item.status)}</span>
+            <span class="badge ${item.status === 'QUEUED' ? 'bg-success' : 'bg-info'}">${esc(item.status)}</span>
           </div>
           <div class="text-muted small mb-2">
             ${esc(item.timestamp)} · 실행: ${item.executed_items}건 · 제외: ${item.skipped_items}건
           </div>
           <div class="d-flex justify-content-between align-items-center">
             <span class="text-secondary small">${esc(item.note||'')}</span>
-            <a href="${esc(item.build_url||'#')}" target="_blank" class="btn-app sm primary"><i class="bi bi-box-arrow-up-right"></i> Jenkins</a>
+            <div class="d-flex gap-1">
+              <button class="btn-app sm" onclick="loadPastExecution('${esc(item.id)}')"><i class="bi bi-arrow-counterclockwise"></i> 재수행</button>
+              <a href="${esc(item.build_url||'#')}" target="_blank" class="btn-app sm primary"><i class="bi bi-box-arrow-up-right"></i> Jenkins</a>
+            </div>
           </div>
         `;
         historyListContainer.appendChild(d);
@@ -267,6 +271,25 @@ frontend/portal-web missing frontend/portal-web feature/new`;
       historyListContainer.innerHTML = `<div class="text-danger p-3">${esc(err.message)}</div>`;
     }
   });
+
+  // Load past execution input text into editor for re-run
+  window.loadPastExecution = async function(executionId) {
+    try {
+      const resp = await fetch(`/api/history/${executionId}`);
+      if (!resp.ok) throw new Error('이력 조회 실패');
+      const record = await resp.json();
+
+      if (record.input_text) {
+        rawInput.value = record.input_text;
+        updateInputStats();
+        historyModal.hide();
+      } else {
+        alert('이 실행 기록에는 원본 입력 데이터가 저장되어 있지 않습니다.');
+      }
+    } catch (err) {
+      alert('이력 불러오기 실패: ' + err.message);
+    }
+  };
 
   async function initBackendStatus() {
     try {
