@@ -47,12 +47,6 @@ function initEventListeners() {
     });
   });
 
-  // Modal open: New Service
-  document.getElementById("btn-new-service").addEventListener("click", () => {
-    openModal("modal-new-service");
-    updatePreview();
-  });
-
   // Modal close buttons
   document.querySelectorAll("[data-close]").forEach(btn => {
     btn.addEventListener("click", () => {
@@ -68,30 +62,6 @@ function initEventListeners() {
     });
   });
 
-  // Tab navigation in New Service Modal
-  document.querySelectorAll(".tab-btn").forEach(tab => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab-btn").forEach(t => t.classList.remove("active"));
-      document.querySelectorAll(".tab-pane").forEach(p => p.classList.remove("active"));
-      tab.classList.add("active");
-      document.getElementById(tab.dataset.tab).classList.add("active");
-    });
-  });
-
-  // Preview form changes
-  const previewInputs = ["svc-name", "svc-desc", "svc-exec", "svc-workdir", "svc-user", "svc-restart", "svc-env"];
-  previewInputs.forEach(id => {
-    const el = document.getElementById(id);
-    if (el) el.addEventListener("input", debounce(updatePreview, 300));
-  });
-
-  document.getElementById("btn-refresh-preview").addEventListener("click", (e) => {
-    e.preventDefault();
-    updatePreview();
-  });
-
-  // Submit New Service
-  document.getElementById("btn-submit-new-service").addEventListener("click", handleCreateService);
 
   // Log Modal controls
   document.getElementById("log-lines").addEventListener("change", () => {
@@ -204,6 +174,7 @@ function createServiceCardHTML(svc) {
 
   const activeSince = svc.active_since ? formatDate(svc.active_since) : "-";
   const pidDisplay = svc.pid > 0 ? svc.pid : "-";
+  const execUser = svc.execution_user || "root";
   const enableBtnLabel = svc.is_enabled ? "⚡ 자동실행 켬" : "⚪ 수동실행";
   const enableBtnClass = svc.is_enabled ? "btn-secondary" : "btn-ghost";
 
@@ -213,6 +184,7 @@ function createServiceCardHTML(svc) {
         <div class="service-title-area">
           <div class="service-name">
             <span>${escapeHTML(svc.name)}</span>
+            <span class="user-tag" title="실행 계정 (User)">👤 ${escapeHTML(execUser)}</span>
             <span class="category-tag">${escapeHTML(svc.category || "Custom")}</span>
           </div>
           <div class="service-desc">${escapeHTML(svc.description || "등록된 설명이 없습니다.")}</div>
@@ -221,6 +193,10 @@ function createServiceCardHTML(svc) {
       </div>
 
       <div class="card-metrics">
+        <div class="metric-item">
+          <span class="metric-label">실행 계정</span>
+          <span class="metric-val font-mono">👤 ${escapeHTML(execUser)}</span>
+        </div>
         <div class="metric-item">
           <span class="metric-label">PID</span>
           <span class="metric-val font-mono">${pidDisplay}</span>

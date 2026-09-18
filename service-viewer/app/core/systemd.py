@@ -95,6 +95,7 @@ def get_service_details(service_name: str) -> Dict:
         "ActiveEnterTimestamp",
         "ExecMainStartTimestamp",
         "FragmentPath",
+        "User",
     ]
     cmd = ["systemctl", "show", service_name, f"--property={','.join(props_to_fetch)}"]
     code, out, _ = run_cmd(cmd)
@@ -123,6 +124,11 @@ def get_service_details(service_name: str) -> Dict:
 
     active_since = props.get("ActiveEnterTimestamp", "")
 
+    # Execution user
+    exec_user = props.get("User", "")
+    if not exec_user or exec_user == "[not set]":
+        exec_user = "root"
+
     return {
         "name": service_name,
         "description": props.get("Description", ""),
@@ -131,6 +137,7 @@ def get_service_details(service_name: str) -> Dict:
         "sub_state": sub_state,
         "unit_file_state": unit_file_state,
         "pid": pid,
+        "execution_user": exec_user,
         "memory_formatted": format_bytes(mem_bytes),
         "memory_bytes": mem_bytes,
         "active_since": active_since,

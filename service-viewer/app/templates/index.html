@@ -33,9 +33,6 @@
         <button id="btn-refresh" class="btn btn-secondary">
           <span class="icon">🔄</span> 새로고침
         </button>
-        <button id="btn-new-service" class="btn btn-primary">
-          <span class="icon">➕</span> 새 서비스 등록
-        </button>
       </div>
     </header>
 
@@ -104,129 +101,10 @@
         <div id="empty-state" class="empty-state" style="display: none;">
           <div class="empty-icon">📦</div>
           <h3>등록된 커스텀 서비스가 없습니다</h3>
-          <p>상단의 <strong>[새 서비스 등록]</strong> 버튼을 눌러 내가 관리할 데몬을 등록해보세요.</p>
+          <p>각 서비스별로 등록된 systemd 커스텀 서비스가 감지되면 자동으로 여기에 표시됩니다.</p>
         </div>
       </section>
     </main>
-  </div>
-
-  <!-- Modal: New Service Wizard -->
-  <div id="modal-new-service" class="modal-overlay">
-    <div class="modal-content modal-lg">
-      <div class="modal-header">
-        <div class="modal-title">
-          <span class="icon">✨</span>
-          <h2>새 systemd 서비스 등록</h2>
-        </div>
-        <button class="btn-close" data-close="modal-new-service">✕</button>
-      </div>
-      <div class="modal-body">
-        <div class="tab-nav">
-          <button class="tab-btn active" data-tab="tab-wizard">간편 마법사</button>
-          <button class="tab-btn" data-tab="tab-raw">직접 작성 (Raw Unit)</button>
-        </div>
-
-        <!-- Tab 1: Wizard -->
-        <div id="tab-wizard" class="tab-pane active">
-          <form id="form-new-service">
-            <div class="form-row">
-              <div class="form-group flex-1">
-                <label for="svc-name">서비스 이름 <span class="req">*</span></label>
-                <div class="input-with-suffix">
-                  <input type="text" id="svc-name" placeholder="예: repo-manager" required>
-                  <span class="suffix">.service</span>
-                </div>
-                <span class="help-text">알파벳, 숫자, 하이픈(-) 사용 권장</span>
-              </div>
-              <div class="form-group flex-1">
-                <label for="svc-category">카테고리</label>
-                <input type="text" id="svc-category" placeholder="예: DevOps / Web / AI" value="Custom">
-              </div>
-            </div>
-
-            <div class="form-group">
-              <label for="svc-desc">서비스 설명 (Description)</label>
-              <input type="text" id="svc-desc" placeholder="예: Repo Manager FastAPI Web Service">
-            </div>
-
-            <div class="form-group">
-              <label for="svc-exec">실행 명령어 (ExecStart) <span class="req">*</span></label>
-              <input type="text" id="svc-exec" class="font-mono" placeholder="예: /usr/bin/python3 /home/ck21im/dev/devops-tools/repo-manager/run.py" required>
-              <span class="help-text">절대 경로(Absolute path)로 지정해야 안전하게 동작합니다.</span>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group flex-1">
-                <label for="svc-workdir">작업 디렉토리 (WorkingDirectory)</label>
-                <input type="text" id="svc-workdir" class="font-mono" placeholder="예: /home/ck21im/dev/devops-tools/repo-manager">
-              </div>
-              <div class="form-group flex-1">
-                <label for="svc-user">실행 사용자 (User)</label>
-                <input type="text" id="svc-user" placeholder="기본값: ck21im" value="ck21im">
-              </div>
-            </div>
-
-            <div class="form-row">
-              <div class="form-group flex-1">
-                <label for="svc-restart">재시작 정책 (Restart)</label>
-                <select id="svc-restart">
-                  <option value="always" selected>always (비정상 종료 시 항상 자동 재시작)</option>
-                  <option value="on-failure">on-failure (실패 코드로 종료될 때만 재시작)</option>
-                  <option value="no">no (재시작 안 함)</option>
-                </select>
-              </div>
-              <div class="form-group flex-1">
-                <label for="svc-env">환경 변수 (쉼표 구분)</label>
-                <input type="text" id="svc-env" class="font-mono" placeholder="예: PORT=8081, HOST=0.0.0.0">
-              </div>
-            </div>
-
-            <div class="form-group form-check">
-              <label>
-                <input type="checkbox" id="svc-enable-now" checked>
-                <span>생성 즉시 부팅 자동실행 등록 및 서비스 시작 (enable --now)</span>
-              </label>
-            </div>
-          </form>
-
-          <!-- Preview Box -->
-          <div class="preview-box">
-            <div class="preview-header">
-              <span>📄 생성될 /etc/systemd/system/ 단위 파일 미리보기</span>
-              <button id="btn-refresh-preview" class="btn btn-sm btn-ghost">새로고침</button>
-            </div>
-            <pre id="preview-content" class="code-box font-mono">[미리보기 로딩 중...]</pre>
-          </div>
-        </div>
-
-        <!-- Tab 2: Raw Editor -->
-        <div id="tab-raw" class="tab-pane">
-          <div class="form-group">
-            <label for="raw-svc-name">서비스 이름 <span class="req">*</span></label>
-            <div class="input-with-suffix">
-              <input type="text" id="raw-svc-name" placeholder="my-service">
-              <span class="suffix">.service</span>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="raw-content">systemd Unit 내용 (.service)</label>
-            <textarea id="raw-content" class="code-editor font-mono" rows="14" placeholder="[Unit]&#10;Description=My Custom Service&#10;After=network.target&#10;&#10;[Service]&#10;Type=simple&#10;ExecStart=/path/to/exec&#10;Restart=always&#10;&#10;[Install]&#10;WantedBy=multi-user.target"></textarea>
-          </div>
-          <div class="form-group form-check">
-            <label>
-              <input type="checkbox" id="raw-enable-now" checked>
-              <span>생성 즉시 서비스 시작 (enable --now)</span>
-            </label>
-          </div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-close="modal-new-service">취소</button>
-        <button id="btn-submit-new-service" class="btn btn-primary">
-          <span class="icon">💾</span> 서비스 생성 및 등록
-        </button>
-      </div>
-    </div>
   </div>
 
   <!-- Modal: Log Viewer -->

@@ -35,8 +35,9 @@ def test_core_systemd():
 
     # Test reading existing service if ollama exists
     ollama_details = systemd.get_service_details("ollama.service")
-    print(f"Ollama details: active_state={ollama_details.get('active_state')}, pid={ollama_details.get('pid')}")
+    print(f"Ollama details: active_state={ollama_details.get('active_state')}, user={ollama_details.get('execution_user')}, pid={ollama_details.get('pid')}")
     assert ollama_details["name"] == "ollama.service"
+    assert ollama_details["execution_user"] == "ollama"
     print("Core systemd tests passed!")
 
 
