@@ -13,8 +13,12 @@
 - **Jenkins 작업 실행 연동**:
   - 검증 완료된 대상을 Jenkins 파이프라인으로 전송 (`buildWithParameters`)
   - 오류 항목 자동 제외 및 덮어쓰기 허용 옵션
-  - Jenkins 콘솔 로그 바로가기 및 실행 이력 대시보드 제공
-- **현대적인 다크 테마 UI**: 반응형 레이아웃, 직관적인 상태 필터링 및 검색
+  - Jenkins 콘솔 로그 바로가기 연동
+- **영구 실행 이력(Execution History) 및 재수행(Rerun)**:
+  - 매 실행 시 `data/history/exec-{timestamp}.json` 파일로 영구 보관 (원본 입력 텍스트 포함)
+  - 실행 이력 모달에서 과거 내역 조회 및 **[재수행]** 버튼으로 에디터에 입력 데이터 즉시 복원
+  - 개별 이력 삭제 지원
+- **현대적인 SaaS 스타일 UI**: 사이드바 내비게이션, 3단계 Stepper 워크플로우, 상태 배지, 실시간 필터링 및 검색
 
 ## 빠른 시작 (Python 직접 실행)
 
@@ -22,6 +26,9 @@ Docker 없이 파이썬만으로 즉시 실행할 수 있습니다:
 
 ```bash
 cd repo-manager
+
+# 의존성 설치
+pip install -r requirements.txt
 
 # 실행 (기본 포트: 8081, 핫 리로드 지원)
 python3 run.py
@@ -40,40 +47,39 @@ cd repo-manager
 docker compose up -d
 ```
 
-## 설정 파일 (config.yaml)
+## 설정 (config.yaml 및 환경 변수)
+
+Jenkins 및 repo-scope 백엔드 연동 설정:
 
 ```yaml
-sync_interval_minutes: 30    # 자동 Sync 주기
+# config.yaml (선택 사항, 없으면 환경변수 및 기본값 사용)
+jenkins:
+  url: "http://localhost:9090"
+  job_name: "repo-sync-pipeline"
+  username: "admin"
+  api_token: "your-api-token"
 
-gerrit_instances:
-  - name: gerrit-main        # 표시 이름
-    url: https://gerrit.example.com
-    auth_type: http           # http 또는 ssh
-    username: admin
-    password: secret
-
-github_instances:
-  - name: github-main
-    url: https://api.github.com
-    token: ghp_xxxxxxxxxxxx
-    orgs:
-      - my-org
+repo_scope:
+  url: "http://localhost:8000"  # repo-scope 검증 BE (미설정 시 내장 시뮬레이터 동작)
 ```
 
-### Gerrit 인증 방식
-
-**HTTP (REST API)**
-- `auth_type: http`
-- `username` + `password` (Gerrit HTTP Password)
-- 레포, 브랜치, 권한 정보 모두 조회 가능
-
-**SSH**
-- `auth_type: ssh`
-- `username` + `ssh_key` + `ssh_port`
-- 레포, 브랜치 조회 가능 (권한 정보는 제한적)
+환경 변수로도 동일하게 오버라이드할 수 있습니다:
+- `JENKINS_URL`, `JENKINS_JOB`, `JENKINS_USER`, `JENKINS_TOKEN`
+- `REPO_SCOPE_URL`
 
 ## API 엔드포인트
 
+### Branch Migration & Sync API
+| Method | Path | 설명 |
+|---|---|---|
+| POST | `/api/dry-run` | 배치 목록 사전 검증 (Ready / Warning / Error 판별) |
+| POST | `/api/execute` | Jenkins 파이프라인 실행 트리거 및 이력 JSON 파일 저장 |
+| GET | `/api/history` | 최근 실행 이력 목록 조회 |
+| GET | `/api/history/{id}` | 개별 실행 이력 상세 조회 및 원본 입력 데이터 로드 (재수행용) |
+| DELETE | `/api/history/{id}` | 실행 이력 파일 삭제 |
+| GET | `/api/jenkins/config` | Jenkins 및 repo-scope 연동 설정/상태 확인 |
+
+### 레포지토리 관리 API (기존)
 | Method | Path | 설명 |
 |---|---|---|
 | GET | `/api/stats` | 전체 통계 |
@@ -108,3 +114,4 @@ docker compose logs -f
 docker compose down -v
 docker compose up -d
 ```
+
