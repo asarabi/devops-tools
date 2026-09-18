@@ -7,6 +7,7 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from app.models import init_db, get_db, Source
 from app.api.routes import router as api_router
+from app.api.branch_sync import router as branch_sync_router
 from app.sync.scheduler import start_scheduler
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
@@ -27,6 +28,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Repo Manager", lifespan=lifespan)
 app.include_router(api_router)
+app.include_router(branch_sync_router)
 
 templates_dir = os.path.join(os.path.dirname(__file__), "templates")
 static_dir = os.path.join(os.path.dirname(__file__), "static")

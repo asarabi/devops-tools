@@ -1,45 +1,43 @@
 # Repo Manager
 
-다중 Gerrit 인스턴스 및 GitHub 레포지토리를 통합 관리하는 웹 대시보드입니다.
+레포지토리 및 브랜치 마이그레이션/동기화(Branch Migration & Sync) 파이프라인 웹 대시보드입니다.  
+`from-repo from-branch to-repo to-branch` 형태의 대량 작업 목록을 입력받아, **사전 존재 여부 검증(Dry-Run)** 후 **Jenkins를 통해 실제 작업을 수행하고 이력을 관리**합니다.
 
-## 기능
+## 주요 기능
 
-- 다중 Gerrit/GitHub 인스턴스 지원
-- 전체 레포지토리 목록 및 상태 조회
-- 브랜치 정보 조회
-- Gerrit 권한 상속 트리 시각화
-- 검색 및 필터링 (Source, State)
-- DB 기반 캐싱 (주기적 Sync)
-- 수동 Sync 트리거
+- **배치 입력 지원**: `from-repo from-branch to-repo to-branch` 형식 다중 라인 입력 및 파일(.txt, .csv, .tsv) 드래그 앤 드롭
+- **실시간 Dry-Run 사전 검증**:
+  - 소스 레포 및 브랜치 존재 여부 확인
+  - 타겟 브랜치 충돌/덮어쓰기 감지 (Ready / Warning / Error 상태 구분)
+  - `repo-scope` 백엔드 연동 및 개발용 시뮬레이터(Mock) 내장
+- **Jenkins 작업 실행 연동**:
+  - 검증 완료된 대상을 Jenkins 파이프라인으로 전송 (`buildWithParameters`)
+  - 오류 항목 자동 제외 및 덮어쓰기 허용 옵션
+  - Jenkins 콘솔 로그 바로가기 및 실행 이력 대시보드 제공
+- **현대적인 다크 테마 UI**: 반응형 레이아웃, 직관적인 상태 필터링 및 검색
 
-## 빠른 시작
+## 빠른 시작 (Python 직접 실행)
 
-### 설정
+Docker 없이 파이썬만으로 즉시 실행할 수 있습니다:
 
 ```bash
 cd repo-manager
-cp config.yaml.example config.yaml
-# config.yaml 편집: Gerrit/GitHub 접속 정보 입력
+
+# 실행 (기본 포트: 8081, 핫 리로드 지원)
+python3 run.py
+# 또는
+./run.sh
 ```
 
-### 빌드
+- 웹 대시보드: **http://localhost:8081**
+
+---
+
+## Docker 실행 (선택 사항)
 
 ```bash
-docker compose build
-```
-
-### 시작
-
-```bash
+cd repo-manager
 docker compose up -d
-```
-
-- 대시보드: http://localhost:8081
-
-### 중단
-
-```bash
-docker compose down
 ```
 
 ## 설정 파일 (config.yaml)
