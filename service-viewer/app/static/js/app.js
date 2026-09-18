@@ -236,9 +236,6 @@ function createServiceCardHTML(svc) {
           <button class="btn btn-sm btn-secondary btn-edit-unit" data-name="${svc.name}" title="Unit 파일 직접 편집">
             ✏️ 편집
           </button>
-          <button class="btn btn-sm btn-danger btn-delete-service" data-name="${svc.name}" title="서비스 삭제">
-            🗑️
-          </button>
         </div>
       </div>
     </div>
@@ -278,14 +275,6 @@ function attachCardEvents() {
     btn.addEventListener("click", () => {
       const name = btn.dataset.name;
       openEditModal(name);
-    });
-  });
-
-  // Delete Service
-  document.querySelectorAll(".btn-delete-service").forEach(btn => {
-    btn.addEventListener("click", () => {
-      const name = btn.dataset.name;
-      confirmDeleteService(name);
     });
   });
 }
@@ -381,24 +370,6 @@ async function handleSaveUnit() {
   }
 }
 
-// Confirm and Delete Service
-async function confirmDeleteService(name) {
-  if (!confirm(`정말로 서비스 '${name}'을(를) 삭제하시겠습니까?\n\n- 서비스가 중지 및 비활성화됩니다.\n- /etc/systemd/system/${name} 파일이 삭제됩니다.`)) {
-    return;
-  }
-
-  showToast(`${name} 삭제 처리 중...`, "info");
-  try {
-    const res = await fetch(`/api/services/${name}`, { method: "DELETE" });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.detail || "삭제에 실패했습니다.");
-
-    showToast(`${name} 삭제 완료`, "success");
-    loadServices();
-  } catch (err) {
-    showToast(`삭제 오류: ${err.message}`, "error");
-  }
-}
 
 // Update New Service Template Preview
 async function updatePreview() {
