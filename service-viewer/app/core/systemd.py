@@ -45,18 +45,26 @@ def save_tracked_services(services: List[Dict]):
         json.dump(services, f, indent=2, ensure_ascii=False)
 
 
-def scan_custom_system_services() -> List[str]:
-    """Scan /etc/systemd/system for real unit files (not symlinks to /lib/systemd/system)"""
+def scan_custom_system_services() -> List[Dict[str, str]]:
+    """Scan /etc/systemd/system and ~/.config/systemd/user for real unit files"""
     discovered = []
+
+    # 1. Scan /etc/systemd/system (System services)
     if SYSTEMD_SYSTEM_DIR.exists():
         for item in SYSTEMD_SYSTEM_DIR.glob("*.service"):
-            # Check if it's a real file or not pointing to system library
+            # Real file (not a symlink to /lib/systemd or /usr/lib/systemd)
             if not item.is_symlink():
-                discovered.append(item.name)
+                discovered.append({"name": item.name, "scope": "system", "category": "System (Custom)"})
             else:
                 target = str(item.resolve())
                 if not target.startswith("/lib/systemd") and not target.startswith("/usr/lib/systemd"):
-                    discovered.append(item.name)
+                    discovered.append({"name": item.name, "scope": "system", "category": "System (Custom)"})
+
+    # 2. Scan ~/.config/systemd/user (User-level services)
+    if SYSTEMD_USER_DIR.exists():
+        for item in SYSTEMD_USER_DIR.glob("*.service"):
+            discovered.append({"name": item.name, "scope": "user", "category": "User Service"})
+
     return discovered
 
 
@@ -140,12 +148,14 @@ def get_all_managed_services() -> List[Dict]:
 
     # Add custom units to tracked if not present
     updated = False
-    for unit in custom_units:
-        if unit not in tracked:
-            tracked[unit] = {
-                "name": unit,
+    for item in custom_units:
+        unit_name = item["name"]
+        if unit_name not in tracked:
+            tracked[unit_name] = {
+                "name": unit_name,
                 "description": "",
-                "category": "Custom",
+                "category": item.get("category", "Custom"),
+                "scope": item.get("scope", "system"),
                 "tracked_at": datetime.now(timezone.utc).isoformat(),
             }
             updated = True
